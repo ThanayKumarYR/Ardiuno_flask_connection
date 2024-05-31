@@ -1,8 +1,8 @@
 #include <WiFi.h>
 #include <WiFiClient.h>
 
-const char* ssid = "Thanay";
-const char* password = "1234567890";
+const char* ssid = "wifi_name";
+const char* password = "wifi_password";
 
 const char* host = "192.168.43.246"; // IP address of your Flask server
 const int httpPort = 5001; // Port of the Flask server
