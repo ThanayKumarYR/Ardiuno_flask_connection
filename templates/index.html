@@ -13,15 +13,17 @@
 
             socket.on('update', (data) => {
                 console.log('Data received:', data);
-                document.getElementById('key1').textContent = data.key1;
-                document.getElementById('key2').textContent = data.key2;
+                document.getElementById('hr').textContent = data.hr;
+                document.getElementById('spo2').textContent = data.spo2;
+                document.getElementById('status').textContent = data.status;
             });
         });
     </script>
 </head>
 <body>
     <h1>Flask-SocketIO Example</h1>
-    <p>Key1: <span id="key1">{{ key1 }}</span></p>
-    <p>Key2: <span id="key2">{{ key2 }}</span></p>
+    <p>Hr: <span id="hr">{{ hr }}</span></p>
+    <p>SpO2: <span id="spo2">{{ spo2 }}</span></p>
+    <p>Status: <span id="status">{{ status }}</span></p>
 </body>
 </html>

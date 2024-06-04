@@ -1,13 +1,33 @@
 #include <WiFi.h>
 #include <WiFiClient.h>
+#include <Wire.h>
+#include <MAX30105.h>
+#include <heartRate.h>
+#include <spo2_algorithm.h>
+#include <HTTPClient.h>
 
-const char* ssid = "wifi_name";
-const char* password = "wifi_password";
+MAX30105 particleSensor;
+
+const byte RATE_SIZE = 4; // Increase this for more precision, but slower updates
+byte rates[RATE_SIZE]; // Array of heart rates
+byte rateSpot = 0;
+long lastBeat = 0; // Time at which the last beat occurred
+float beatsPerMinute;
+int beatAvg;
+
+int32_t bufferLength; // Buffer length for heart rate and SpO2 calculation
+uint32_t irBuffer[100]; // IR LED sensor data
+uint32_t redBuffer[100]; // Red LED sensor data
+int32_t spo2; // SPO2 value
+int8_t validSPO2; // SPO2 validity
+int32_t heartRate; // Heart rate value
+int8_t validHeartRate; // Heart rate validity
+
+const char* ssid = "Thanay";
+const char* password = "1234567890";
 
 const char* host = "192.168.43.246"; // IP address of your Flask server
 const int httpPort = 5001; // Port of the Flask server
-int key1 = 0;
-int key2 = 1;
 
 void setup() {
   Serial.begin(115200);
@@ -23,11 +43,47 @@ void setup() {
   Serial.print("Connecting to ");
   Serial.println(host);
 
+  if (!particleSensor.begin(Wire, I2C_SPEED_FAST)) {
+    Serial.println("MAX30102 was not found. Please check wiring/power.");
+    while (1);
+  }
+  particleSensor.setup(); // Configure sensor with default settings
+
+  Serial.println("Place your finger on the sensor to start reading...");
+
 }
 
 void loop() {
-  // Do nothing here
-  delay(5000);
+  // Read data from MAX30102
+  bufferLength = 100; // Sample 100 data points
+  
+  // Read 100 samples from the sensor
+  for (byte i = 0; i < bufferLength; i++) {
+    while (!particleSensor.available()) {
+      particleSensor.check(); // Check the sensor for new data
+    }
+    redBuffer[i] = particleSensor.getRed();
+    irBuffer[i] = particleSensor.getIR();
+    particleSensor.nextSample(); // Move to the next sample
+  }
+
+  // Calculate heart rate and SpO2
+  maxim_heart_rate_and_oxygen_saturation(irBuffer, bufferLength, redBuffer, &spo2, &validSPO2, &heartRate, &validHeartRate);
+
+  // Determine cow status
+  String cowStatus = "Unknown";
+  if (validHeartRate && validSPO2) {
+    if (heartRate < 40 || heartRate > 100 || spo2 < 90) {
+      cowStatus = "Critical";
+    } else {
+      cowStatus = "Normal";
+    }
+  }
+
+  // Print data to Serial Monitor
+  Serial.print("HR: "); Serial.print(heartRate);
+  Serial.print(", SpO2: "); Serial.print(spo2);
+  Serial.print(", Status: "); Serial.println(cowStatus);
   WiFiClient client;
 
   if (!client.connect(host, httpPort)) {
@@ -36,10 +92,7 @@ void loop() {
   }
 
   String url = "/";
-  String postData = "key1=" + String(key1) + "&key2=" + String(key2);
-  
-  key1++;
-  key2++;
+  String postData = "hr=" + String(heartRate) + "&spo2=" + String(spo2) + "&status=" + String(cowStatus);
 
   client.println("POST " + url + " HTTP/1.1");
   client.println("Host: " + String(host));

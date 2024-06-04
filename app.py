@@ -5,46 +5,52 @@ from flask_socketio import SocketIO
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///data.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = 'your_secret_key'  # Replace with your secret key
+app.config['SECRET_KEY'] = 'I8BinduS3M'  # Replace with your secret key
 db = SQLAlchemy(app)
 socketio = SocketIO(app)
 
 class Data(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    key1 = db.Column(db.String(50))
-    key2 = db.Column(db.String(50))
+    hr = db.Column(db.String(50))
+    spo2 = db.Column(db.String(50))
+    status = db.Column(db.String(50))
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
-        key1 = request.form.get('key1')
-        key2 = request.form.get('key2')
+        hr = request.form.get('hr')
+        spo2 = request.form.get('spo2')
+        status = request.form.get('status')
+        
 
         # Store data in the database (replace the old record if it exists)
         existing_data = Data.query.first()
         if existing_data:
-            existing_data.key1 = key1
-            existing_data.key2 = key2
+            existing_data.hr = hr
+            existing_data.spo2 = spo2
+            existing_data.status = status
         else:
-            new_data = Data(key1=key1, key2=key2)
+            new_data = Data(hr=hr,spo2=spo2,status=status)
             db.session.add(new_data)
 
         db.session.commit()
 
-        print(f"Received key1: {key1}, key2: {key2}")  # Debugging print
-        socketio.emit('update', {'key1': key1, 'key2': key2})
-        return render_template('index.html', key1=key1, key2=key2)
+        print(f"Received Hr: {hr}, : spO2: {spo2}, status: {status}")  # Debugging print
+        socketio.emit('update', {'hr': hr, 'spo2': spo2, 'status':status})
+        return render_template('index.html', hr=hr, spo2=spo2,status=status)
     
     # Fetch the latest data from the database
     latest_data = Data.query.first()
     if latest_data:
-        key1 = latest_data.key1
-        key2 = latest_data.key2
+        hr = latest_data.hr
+        spo2 = latest_data.spo2
+        status = latest_data.status
     else:
-        key1 = ""
-        key2 = ""
+        hr = ""
+        spo2 = ""
+        status = ""
     
-    return render_template('index.html', key1=key1, key2=key2)
+    return render_template('index.html', hr=hr, spo2=spo2, status=status)
 
 @socketio.on('connect')
 def handle_connect():
